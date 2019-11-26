@@ -27,8 +27,8 @@ def cleanUpComments(comments:list) -> list:
     for comment in comments:#loop over each comment tokenizing and removing stop words
         comment = re.sub(pattern,' ',comment) # replace pattern with empty string
         currentWordVector = nltk.word_tokenize(comment)
-        filteredWordVector = [w for w in currentWordVector if not w in stop_words]
-        commentsVectorList.append(filteredWordVector)#append filtered tokenized comment to final list
+        
+        commentsVectorList.append(currentWordVector)#append filtered tokenized comment to final list
     return commentsVectorList
 
 def removeClassBlocks(comments:list,codeBlocks:list):
@@ -69,8 +69,42 @@ def pickleObject(object,filename):
     f = open(filename+".pkl",'wb')
     pickle.dump(object,f)
     f.close()    
+def getFSECommentTuple(comments:list,codeBlocks:list)->tuple:
+    comments = cleanUpComments(comments)
+    removeBadCodeCommentPair(comments,codeBlocks)
+    codeBlocks = getFunctionSignatures(codeBlocks)
+    return comments,codeBlocks
+
+def annotateParameters(comments:list,functionSignature:list)->list:
+    paramaterAnnotatedComment = []
+    for (i,comment) in enumerate(comments):
+        curentAnnotation = []
+        for word in comment:
+            if word not in functionSignature[i][1]:
+                curentAnnotation.append((word,'W'))
+            else:
+                curentAnnotation.append((word,'P'))
+        paramaterAnnotatedComment.append(curentAnnotation)
+    return paramaterAnnotatedComment
+
+def getUniqueWords(comments:list):
+    uniqueWords = set(list())
+    for comment in comments:
+        for w in comment:
+            uniqueWords.add(w)
         
-comments = loadPickleFile('Pickle/scipy_comments.pkl')
-codeBlocks = loadPickleFile('Pickle/scipy_codeblocks.pkl')
-comments_tokenized = loadPickleFile('Pickle/scipy_comments_tokenized.pkl')
-functionSignatureList = loadPickleFile('Pickle/scipy_fsl.pkl')
+    return uniqueWords
+
+def getProbabilityOf3Gram(annotatedCommentSet,comments):
+    from nltk import ngrams
+    threeGrams = []
+    biGram = []
+    for comment in comments:
+        threeGrams.append(ngrams(comment,3))
+        biGram.append(ngrams(comment,2))
+    
+    
+scipyComments = loadPickleFile('Pickle/scipy/scipy_comments_tokenized.pkl')
+scipyFSE = loadPickleFile('Pickle/scipy/scipy_fse.pkl')
+annotatedCommentSet = annotateParameters(scipyComments,scipyFSE)
+hd = getProbabilityOf3Gram([],scipyComments)
