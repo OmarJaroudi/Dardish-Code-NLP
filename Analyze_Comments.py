@@ -10,63 +10,37 @@ import re
 import numpy as np
 from nltk.corpus import stopwords 
 from nltk import ngrams
-from collections import OrderedDict
+import scipy
+from Distribution_Fit import Distribution
 from nltk.stem import WordNetLemmatizer
 wnl = WordNetLemmatizer()
+dist = Distribution()
 from matplotlib import pyplot as plt
-##
-##PATH = "./Algorithms_Pickles"
-##directory = os.fsencode(PATH)
-##codeBlocks = []
-##commentBlocks = []
-##for file in os.listdir(directory):
-##     filename = os.fsdecode(file)
-##     if filename.endswith(".pkl"):
-##        if (filename.find("CODE")!=-1):
-##            file = open(PATH+"/"+filename,'rb')
-##            codeBlocks.append(pickle.load(file))
-##        if (filename.find("COMMENT")!=-1):
-##            file = open(PATH+"/"+filename,'rb')
-##            commentBlocks.append(pickle.load(file))
-##            
-##assert(len(codeBlocks)==len(commentBlocks)) #sanity check
-##f = open("Algorithms_CODE.pkl","wb")
-##pickle.dump(codeBlocks,f)
-##f.close()
-##
-##f = open("Algorithms_COMMENTS.pkl","wb")
-##pickle.dump(commentBlocks,f)
-##f.close()
+import pandas as pd
+from operator import itemgetter
 
-
-PATH = "AbouHarb"
-file = open(PATH+"_CODE.pkl",'rb')
+PATH = "scipy"
+file = open(PATH+"_codeblocks.pkl",'rb')
 codeBlocks = pickle.load(file)
-file = open(PATH+"_COMMENTS.pkl",'rb')
+file = open(PATH+"_comments.pkl",'rb')
 commentBlocks = pickle.load(file)
+file = open(PATH+"_comments_tokenized.pkl",'rb')
+commentTokenized = pickle.load(file)
+file = open(PATH+"_fsl.pkl",'rb')
+ftSignatures = pickle.load(file)
 
 def remove_values_from_list(the_list, val):
    return [value for value in the_list if value != val]
 
-#print(commentBlocks[50])
-#print("*************************************")
-#print(codeBlocks[50])
-#i=0
-#j=0
-#for i,c in enumerate(commentBlocks): 
-#    if len(c)>100:
-#        j+=1
-#    else:
-#        commentBlocks.remove(c)
-#        codeBlocks.remove[codeBlocks[i]]
+
 
 def cleanUp(comments):
     uselessRegex = r'[^\w]+'
     c = re.sub(uselessRegex,' ',comments)
-    stop_words = set(stopwords.words('english')) 
+#    stop_words = set(stopwords.words('english')) 
     words = nltk.word_tokenize(c) 
-    filtered_sentence = [w for w in words if not w in stop_words] 
-    return filtered_sentence
+#    filtered_sentence = [w for w in words if not w in stop_words] 
+    return words
 
 def extractFtSignature(code):
     signatureRegex = r'def.*\:'
@@ -95,18 +69,19 @@ def extractFtSignature(code):
             parameters[i] = temp.strip()
     return (ftName,parameters)
 
-
 def getParamGram(words,n=2):
     nGrams = ngrams(words, n)
     paramGram = None
     for grams in nGrams:
-        if grams[0]=='Parameters':
+        regex = '[pP]aram[eters]?'
+        m = re.search(regex,grams[0])
+        if m!=None:
             paramGram = grams
             break
     return paramGram
 
 def getGramLength(words,parameters):
-    for n in range(2,len(words)-2):
+    for n in range(2,len(words)-1):
         gramOfInterest = getParamGram(words,n)
         Found = True
         if gramOfInterest==None:
@@ -118,36 +93,114 @@ def getGramLength(words,parameters):
             else:
                 Found = True
         if Found == True:
-            return n
-goodWords = []
-av = 0
-m = -1
-ratio = []
-for i in range(len(commentBlocks)):
-    comment = commentBlocks[i]
-    code = codeBlocks[i]
-    words = cleanUp(comment)
-    if len(words)<20:
-        continue
-    res = extractFtSignature(code)
-    if res==None:
-        continue
-    ftName = res[0]
-    parameters = res[1]
-    l = getGramLength((words),parameters)
-    if (l!=None):
-        
-        goodWords.append(words)
-        ratio.append(len(words)/l)
+            return n+1
 
-plt.plot(ratio,'o')
-print(len(ratio))
-assert len(ratio)==len(goodWords)
-for g in goodWords:
-    suggested_n = int(len(g)/np.mean(ratio))+1
-    print(g)
-    test_nGram = getParamGram(g,suggested_n)
-    
-    
+paramSynonym = ['param(eter(s)?)?','arg(ument(s)?)?','var(iable(s)?)?','input','takes','accepts','expects']
+returnSynonym = ['return(s)?','output(s)?','prints','riase(s)?','throw(s)?','exception']
 
+
+def getIndexPositions(listOfElements, element):
+    ''' Returns the indexes of all occurrences of give element in
+    the list- listOfElements '''
+    indexPosList = []
+    indexPos = 0
+    while True:
+        try:
+            # Search for item in list from indexPos to the end of list
+            indexPos = listOfElements.index(element, indexPos)
+            # Add the index position in list
+            indexPosList.append(indexPos)
+            indexPos += 1
+        except ValueError as e:
+            break
+    return indexPosList
+
+def annotateComments(blocks,ftSignatures):
+    annotatedWords = []
+    for i,c in enumerate(blocks):
+        if i==400:
+            break
+        c = cleanUp(c)
+        for word in c:
+            if word in ftSignatures[i][1]:
+                annotatedWords.append((word,'P'))
+            else:
+                annotatedWords.append((word,'W'))
+    return (annotatedWords)
+#
+#file = open("annotated.pkl",'rb')
+#annotatedComments = pickle.load(file)
+#file.close()
+#
+#tokenizedComments = []
+#for i,c in enumerate(commentBlocks):
+#    if i==400:
+#        break
+#    c = cleanUp(c)
+#    for word in c:
+#        tokenizedComments.append(word)
+#
+#param = []
+#for ann in annotatedComments:
+#    if ann[1]=='P':
+#        param.append(ann[0])
+#
+#param = list(set(param))
+#
+#biGrams = nltk.ngrams(tokenizedComments,2)
+#biGrams = list(set(biGrams))
+#stringRep = []
+#for b in biGrams:
+#    stringRep.append(str(b[0]+','+str(b[1])))
+#df = pd.DataFrame(1,index = stringRep,columns = param)
+#
+#def findWordsBeforeParameter(param:str,commentSet):
+#    idx = getIndexPositions(commentSet,param)
+#    wordPairs =[] 
+#    for i in idx:
+#        wordPairs.append(str(commentSet[i-2])+','+str(commentSet[i-1]))
+#    return wordPairs
+#
+#for p in param:
+#    
+#    wordPairs = findWordsBeforeParameter(p,tokenizedComments)
+#    for w in wordPairs:
+#        df.at[w,p]+=1
+#
+#newbiGrams = nltk.ngrams(tokenizedComments,2)
+#fdist = nltk.FreqDist(newbiGrams)
+#V = len(list(set(tokenizedComments)))
+#for key in fdist.keys():
+#    stringKey = str(key[0])+','+str(key[1])
+#    df.loc[stringKey,:]/=(fdist[key]+V)
+
+
+file = open('Dataframe.pkl','rb')
+df = pickle.load(file)
+file.close()
+V = len(list(set(tokenizedComments)))
+
+df['sum'] = df.sum(axis=1)
+SUM = df.loc[:,'sum'].values
+def predictParameters(commentBlock):
+    commentBlock = cleanUp(commentBlock)
+    candidates = []
+    for i in range(2,len(commentBlock)):
+        w1 = commentBlock[i-2]
+        w2 = commentBlock[i-1]
+        stringKey = w1+','+w2
+        probability=0
+        try:
+            probability = df.loc[stringKey,'sum']
+        except:
+            probability = 1/V
+        candidates.append((commentBlock[i],probability))
+    candidates = list(set(candidates))
+    return sorted(candidates,key=itemgetter(1),reverse = True)
+
+i = 504
+print(predictParameters(commentBlocks[i]))
+print(commentBlocks[i])
+print(ftSignatures[i])
+           
 
