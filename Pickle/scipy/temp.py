@@ -14,6 +14,7 @@ from nltk.tokenize import RegexpTokenizer
 from spellchecker import SpellChecker
 from PyDictionary import PyDictionary
 from nltk.stem import WordNetLemmatizer 
+import keyword
   
 def pickleObject(object,filename):
     f = open(filename+".pkl",'wb')
@@ -37,7 +38,55 @@ def lemmatizeAllComments(fileBlock):
     return lemmList
             
             
+def IsLexicon (commentBlock):
+
+    tokenizer = RegexpTokenizer("[^(\s|\'|\"|\`|\-|\%|\*|\+|\.|\[|\]|\/|\:|\,\=\>\<\)\(\^\}\{\~]+")
+    Tokenized_Block = tokenizer.tokenize(commentBlock)
+
+
+    for j,t in enumerate(Tokenized_Block):
+        if(t.isnumeric()):
+            Tokenized_Block[j] = 'NAN'
+       
+    y = ''
     
+    for t in Tokenized_Block:
+        if(t != 'NAN'):
+            y = y + ' ' + t
+            if(t == 'References'):
+                break
+
+    tokenizer = RegexpTokenizer("[a-zA-Z]+\_[a-zA-Z]*")
+
+    Tokenized_Block1 = tokenizer.tokenize(y)
+    
+    tokenizer = RegexpTokenizer("[a-zA-Z]*[0-9]+[a-zA-Z]*")
+    
+    Tokenized_Block2 = tokenizer.tokenize(y)
+    for w in Tokenized_Block2:
+        Tokenized_Block1.append(w)
+    
+    tokenizer = RegexpTokenizer("\s[a-zA-Z][a-z]+[A-Z][a-zA-Z]*")
+    
+    Tokenized_Block2 = tokenizer.tokenize(y)
+    for w in Tokenized_Block2:
+        Tokenized_Block1.append(w)
+    
+    tokenizer = RegexpTokenizer("\s[a-zA-Z]\s")
+    
+    Tokenized_Block2 = tokenizer.tokenize(y)
+    for w in Tokenized_Block2:
+        Tokenized_Block1.append(w)
+    
+    misspelled = spell.unknown(Tokenized_Block)
+    
+    for word in misspelled:
+        if(keyword.iskeyword(word) == False):
+            Tokenized_Block1.append(word)
+    
+    return Tokenized_Block1
+                
+ 
   
 #print("rocks :", lemmatizer.lemmatize("rocks")) 
     
@@ -111,7 +160,7 @@ for word in misspelled:
     # Get a list of `likely` options
     #print(spell.candidates(word))
     
-print("hello")
+#print("hello")
     
 code = open("scipy_codeblocks.pkl",'rb')
 codeBlocks = pickle.load(code)
@@ -135,6 +184,10 @@ fileBlock = pickle.load(fil)
 
 i = 329
 
+LIST = IsLexicon(commentBlocks[i])
+
+print(LIST)
+
 
 tokenizer = RegexpTokenizer("[^(\s|\'|\"|\`|\-|\%|\*|\+|\.|\[|\]|\/|\:|\,\=\>\<\)\(\^\}\{\~]+")
 Tokenized_Block = tokenizer.tokenize(commentBlocks[i])
@@ -148,9 +201,9 @@ for j,t in enumerate(Tokenized_Block):
 #print("*********************NEW PRINT***************************")
 #print(Tokenized_Block2)
 #print("*********************NEW PRINT***************************")
-print(codeBlocks[i])
-print("*********************NEW PRINT***************************")
-print(commentBlocks[i])
+#print(codeBlocks[i])
+#print("*********************NEW PRINT***************************")
+#print(commentBlocks[i])
 
 y = ''
 for t in Tokenized_Block:
@@ -160,9 +213,9 @@ for t in Tokenized_Block:
          break
 
 
-print("*********************NEW PRINT***************************")
+#print("*********************NEW PRINT***************************")
 
-print(y)
+#print(y)
 
 #tokenizer = RegexpTokenizer("[^(\s|\0-9)]+")
 #Tokenized_Block2 = tokenizer.tokenize(y)
@@ -171,9 +224,9 @@ tokenizer = RegexpTokenizer("[a-zA-Z]+\_[a-zA-Z]*")
 
 Tokenized_Block1 = tokenizer.tokenize(y)
 
-print("*********************NEW PRINT***************************")
-print("Words with an underscore: ")
-print(Tokenized_Block1)
+#print("*********************NEW PRINT***************************")
+#print("Words with an underscore: ")
+#print(Tokenized_Block1)
 
 
 tokenizer = RegexpTokenizer("[a-zA-Z]*[0-9]+[a-zA-Z]*")
@@ -181,20 +234,20 @@ tokenizer = RegexpTokenizer("[a-zA-Z]*[0-9]+[a-zA-Z]*")
 Tokenized_Block2 = tokenizer.tokenize(y)
 
 #print("*********************NEW PRINT***************************")
-print("Words with numbers in them: ")
-print(Tokenized_Block2)
+#print("Words with numbers in them: ")
+#print(Tokenized_Block2)
 
 tokenizer = RegexpTokenizer("\s[a-zA-Z][a-z]+[A-Z][a-zA-Z]*")
 
 Tokenized_Block3 = tokenizer.tokenize(y)
-print("Words with a capital letter inside them: ")
-print(Tokenized_Block3)
+#print("Words with a capital letter inside them: ")
+#print(Tokenized_Block3)
 
 
 tokenizer = RegexpTokenizer("\s[a-zA-Z]\s")
 Tokenized_Block5 = tokenizer.tokenize(y)
-print("Single letter words: ")
-print(Tokenized_Block5)
+#print("Single letter words: ")
+#print(Tokenized_Block5)
 
 #add here python words
 dictionary=PyDictionary()
@@ -203,39 +256,40 @@ tokenizer = RegexpTokenizer("[^(\s)]+")
 Tokenized_Block4 = tokenizer.tokenize(y)
 misspelled = spell.unknown(Tokenized_Block)
 
-print("\nThe list below are miss spelled words: \n")
-for word in misspelled:
-    print(word)
+#print("\nThe list below are miss spelled words: \n")
+#for word in misspelled:
+ #   if(keyword.iskeyword(word) == False):
+  #      print(word)
    
     
-print("*********************NEW PRINT***************************")
-print(testingBlock[i])
-print("*********************NEW PRINT***************************")
-print(fileBlock[i])
+#print("*********************NEW PRINT***************************")
+#print(testingBlock[i])
+#print("*********************NEW PRINT***************************")
+#print(fileBlock[i])
 
 
 
 
-lemList = lemmatizeAllComments(fileBlock)
+#lemList = lemmatizeAllComments(fileBlock)
 
-bi,tri = getRawTriBiCounts(lemList)
+#bi,tri = getRawTriBiCounts(lemList)
 
-finalList = []
-tempList = []
-for j,file in enumerate(fileBlock):
-    tempList = []
-    for k in range(len(file)):     
-        l = []
-        first = nltk.pos_tag([file[k]])
-        second = [lemList[j][k]]
-        l.append([file[k],lemList[j][k],first[0][1]])
-        tempList.append(l)
+#finalList = []
+#tempList = []
+#for j,file in enumerate(fileBlock):
+ #   tempList = []
+  #  for k in range(len(file)):     
+   #     l = []
+    #    first = nltk.pos_tag([file[k]])
+     #   second = [lemList[j][k]]
+      #  l.append([file[k],lemList[j][k],first[0][1]])
+       # tempList.append(l)
         
-    finalList.append(tempList)
+    #finalList.append(tempList)
     
 
 
-pickleObject(finalList,"FinalList")
+#pickleObject(finalList,"FinalList")
 
 
 
