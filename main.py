@@ -21,10 +21,13 @@ from sklearn.model_selection import train_test_split
 from sklearn import metrics
 from sklearn.tree import export_graphviz
 from sklearn.externals.six import StringIO  
+from sklearn.ensemble import RandomForestClassifier
+
 from collections import Counter
 from sklearn.metrics import classification_report, confusion_matrix
 from IPython.display import Image  
 import pydotplus
+import matplotlib.pyplot as plt
 
 class MultiColumnLabelEncoder:
     def __init__(self,columns = None):
@@ -206,7 +209,7 @@ def tagLexicon(annotatedComments):
                 w.append('lexicon')
     return annotatedComments
 def convertToPandasDF(reducedComments):
-    data = {'Word':[],'POS':[],'Python POS':[],'In-Lexicon':[],'Surrounded':[],'RelativeIdx':[],'TF-IDF':[],'Output':[]}
+    data = {'Word':[],'POS':[],'Python POS':[],'In-Lexicon':[],'RelativeIdx':[],'TF-IDF':[],'Output':[]}
     for comment in reducedComments:
         for w in comment:
             data['Word'].append(w[0])
@@ -215,10 +218,15 @@ def convertToPandasDF(reducedComments):
                 data['Output'].append(1)
             else:
                 data['Output'].append(0)
-                
-            data['Python POS'].append(w[3])
-            data['In-Lexicon'].append(w[4])
-            data['Surrounded'].append(w[5])
+            if(w[3] == 'PythonPos'):    
+                data['Python POS'].append(1)
+            else:
+                data['Python POS'].append(0)
+            if(w[4] == 'lexicon'):
+                data['In-Lexicon'].append(1)
+            else:
+                data['In-Lexicon'].append(0)
+
             data['TF-IDF'].append(w[6])
             data['RelativeIdx'].append(w[7])
     return pd.DataFrame(data)
@@ -240,84 +248,101 @@ def generateReducedCorpus(reducedComments:list)->list:
 scipyComments = loadPickleFile('Pickle/scipy/scipy_comments_tokenized.pkl')
 scipyFSE = loadPickleFile('Pickle/scipy/scipy_fse.pkl')
 def markWordPosition(annotatedComments):
-    for comment in annotatedComments:
-        idx = 0.45*len(comment)
-        for i,w in enumerate(comment):
-            if(i < idx):
-                w.append('<40%')
-            else:
-                w.append('>40%')
+    for i,comment in enumerate(annotatedComments):
+        for w in comment:
+            w.append(i)
     return annotatedComments
 
+def dropCol(df,cols):
+    for col in cols:
+        df = df.drop(col,axis = 1)
+    return df
+def getCommentFetureSet(comment,df):
+    relativeIndexFeature = df.RelativeIdx.max()+1
+    return
 annotatedComments = loadPickleFile('commentDataSet.pkl')
 annotatedComments = markWordPosition(annotatedComments)
 
-rc = reduceComments(annotatedComments)
 
 
 
-df = convertToPandasDF(rc)
-df = MultiColumnLabelEncoder(columns = ['RelativeIdx','POS','Python POS','In-Lexicon','Surrounded','Word']).fit_transform(df)
 
-#df = df[df["Python POS"] == "NotPythonPos"]
-#df = df.drop('Python POS',axis = 1)
-#df = oneHotEncode(df,'Python POS','Python POS')
-#df = df.apply(LabelEncoder().fit_transform)
-df = df.drop('Surrounded',axis=1)
-df = df.drop('RelativeIdx',axis=1)
-##df = oneHotEncode(df,'Surrounded','Surr')
-#
-##df = df.drop('POS',axis=1)
-##df = oneHotEncode(df,'POS','POS')
-#
-##df = df.drop('In-Lexicon',axis=1)
-##df = oneHotEncode(df,'In-Lexicon','Lexicon')
-#
-#
+df = convertToPandasDF(annotatedComments)
+#df=df.drop('TF-IDF',axis=1)
+#df = MultiColumnLabelEncoder(columns = ['POS','Python POS','In-Lexicon','Word']).fit_transform(df)
+
+from sklearn import preprocessing
+posEncoder = preprocessing.LabelEncoder()
+posEncoder.fit(df['POS'])
+df['POS'] =posEncoder.transform(df['POS'])
+
+wordEncoder = preprocessing.LabelEncoder()
+wordEncoder.fit(df['Word'])
+df['Word'] =wordEncoder.transform(df['Word'])
+
+#print(list(posEncoder.classes_))
+#print(wordEncoder.transform(["x_avg"]))
+#print(list(posEncoder.inverse_transform([1])))
+
+
 y = df.Output
 df = df.drop('Output',axis = 1)
-##
+
+
+
 df['Output'] = y
-##
+
 feature_cols = [col for col in df.columns]
 feature_cols.remove('Output')
 #feature_cols.remove('Word')
+
 X = df[feature_cols]
-####
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=1)
-##
-clf = DecisionTreeClassifier()
+
+
+clf = DecisionTreeClassifier(max_depth = 30)
 clf = clf.fit(X_train,y_train)
-##
-##
 y_pred = clf.predict(X_test)
-##
+
+
+
 print('Descion Tree')
 print("Accuracy:",metrics.accuracy_score(y_test, y_pred))
 print("Recall:",metrics.recall_score(y_test, y_pred, average="binary"))
 print("Prescion:",metrics.precision_score(y_test, y_pred, average="binary"))
-#
-#
+
 print(confusion_matrix(y_test,y_pred))
 print(classification_report(y_test,y_pred))
-#
 
 
 
-#from sklearn.metrics import confusion_matrix
-#import matplotlib.pyplot as plt
-#
-#cm = confusion_matrix(y_test, y_pred)
-#print(cm)
-#fig = plt.figure()
-#ax = fig.add_subplot(111)
-#cax = ax.matshow(cm)
-#plt.title('Confusion matrix of the classifier')
-#fig.colorbar(cax)
-#ax.set_xticklabels([''] + labels)
-#ax.set_yticklabels([''] + labels)
-#plt.xlabel('Predicted')
-#plt.ylabel('True')
-#plt.show()
-#
-#
+feature_imp = pd.Series(clf.feature_importances_,index=X.columns).sort_values(ascending=False)
+import seaborn as sns
+
+# Creating a bar plot
+sns.barplot(x=feature_imp, y=feature_imp.index)
+# Add labels to your graph
+
+
+plt.xlabel('Feature Importance Score')
+plt.ylabel('Features')
+plt.title("Visualizing Important Features")
+plt.legend()
+plt.show()
+from sklearn.metrics import confusion_matrix
+
+
+cm = confusion_matrix(y_test, y_pred)
+print(cm)
+fig = plt.figure()
+ax = fig.add_subplot(111)
+cax = ax.matshow(cm)
+plt.title('Confusion matrix of the classifier')
+fig.colorbar(cax)
+ax.set_xticklabels([''] )
+ax.set_yticklabels([''])
+plt.xlabel('Predicted')
+plt.ylabel('True')
+plt.show()
+
+
