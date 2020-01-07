@@ -3,7 +3,7 @@ Created on Thu Nov 21 18:17:07 2019
 
 @author: Mohamad Abou Harb
 """
-
+#libraries used in our model
 import re 
 import pickle
 import nltk
@@ -29,9 +29,11 @@ from IPython.display import Image
 import pydotplus
 import matplotlib.pyplot as plt
 
+#class to create objects with several features
 class MultiColumnLabelEncoder:
     def __init__(self,columns = None):
-        self.columns = columns # array of column names to encode
+        # array of column names to encode
+        self.columns = columns 
 
     def fit(self,X,y=None):
         return self # not relevant here
@@ -51,8 +53,9 @@ class MultiColumnLabelEncoder:
                 output[colname] = LabelEncoder().fit_transform(col)
         return output
 
+    
     def fit_transform(self,X,y=None):
-        return self.fit(X,y).transform(X)
+        return self.fit(X,y).transform(X) #uses class defined "fit" on values X & Y then uses the class defined "transform" to encode X
 
 def loadPickleFile(path:str) -> list:
     try:
@@ -63,6 +66,8 @@ def loadPickleFile(path:str) -> list:
     return pickle.load(file)
 
 def cleanUpComments(comments:list) -> list:
+    #tokenizing to remove non-needed words
+    #takes as parameter 'comments' which is a list
     commentsVectorList = []
     pattern = r'[^\w]+' #pattern to detect non alpha numeric characters
     
@@ -74,6 +79,8 @@ def cleanUpComments(comments:list) -> list:
     return commentsVectorList
 
 def removeClassBlocks(comments:list,codeBlocks:list):
+    #removes classes from lists
+    #takes parameters comments and codeBlocks which are lists
     commentToRemove = []
     codeToRemove = []
     for i,code in enumerate(codeBlocks):
@@ -86,6 +93,8 @@ def removeClassBlocks(comments:list,codeBlocks:list):
         codeBlocks.remove(code)
 
 def removeBadCodeCommentPair(comments:list,codeBlocks:list):
+    #removes unwanted pairs of code and comments
+    #takes as parameters 'comments' & 'codeBlocks' which are lists
     fse = FunctionSignatureExtractor()
     commentToRemove = []
     codeToRemove = []
@@ -101,6 +110,8 @@ def removeBadCodeCommentPair(comments:list,codeBlocks:list):
         codeBlocks.remove(code)
 
 def getFunctionSignatures(codeBlocks:list)->list:
+    #returns a list containing the signature of the function including parameter names and return type etc..
+    #takes as parameter "codeBlocks" which is a list of words that make a function in python
     fse = FunctionSignatureExtractor()
     functionSignatureList = []
     for code in codeBlocks:
@@ -108,23 +119,30 @@ def getFunctionSignatures(codeBlocks:list)->list:
     return functionSignatureList
 
 def pickleObject(object,filename):
+    #function that creates a pickle file
+    #takes as parameter any object and returns a pickle object containing that object
     f = open(filename+".pkl",'wb')
     pickle.dump(object,f)
     f.close()
     
 def getFSECommentTuple(comments:list,codeBlocks:list)->tuple:
+    #gets function signature extractor
+    #takes as parameters "comments" and "codeBlocks" which are lists
     comments = cleanUpComments(comments)
     removeBadCodeCommentPair(comments,codeBlocks)
     codeBlocks = getFunctionSignatures(codeBlocks)
     return comments,codeBlocks
 
 def tagComments(comments:list)->list:
+    #tagging words in a 'comments' which is a list by their POS tag
     taggedComments = []
     for comment in comments:
         taggedComments.append(nltk.pos_tag(comment))
     return taggedComments
 
 def annotateParameters(comments:list,functionSignature:list)->list:
+    #annotates words as parameters using function signatures to know if they are a parameter or not
+    #the parameters are "comments" and "functionSignature" which are lists
     taggedComments = tagComments(comments)
     annotatedComments = []
     
@@ -139,6 +157,8 @@ def annotateParameters(comments:list,functionSignature:list)->list:
 
     return annotatedComments
 def createPosTagList(annotatedComments:list)->list:
+    #Create a list of POS tags which keep the same index as words in another list
+    #takes as parameter "annotatedComments" which is a list
     posTagList = []
     for ac in annotatedComments:
         currentPosList = []
@@ -148,6 +168,8 @@ def createPosTagList(annotatedComments:list)->list:
     return posTagList
 
 def reduceComments(annotatedComments:list)->list:
+    #use custom stop words to optimize perfomance and remove unnessary and frequent words
+    #takes as parameter "annotatedComments" which is a list
     reducedComments = []
     digitPattern = r'\d+'
     uselessWords = ['the','is','are','am','was','there','at','on','where','was','how','which','be','can','for','an','in','of','off','The','and','but','or','their','they','can','that','as','such']
@@ -161,6 +183,8 @@ def reduceComments(annotatedComments:list)->list:
     return reducedComments
 
 def getTermFrequencyVectors(reducedComments:list)->list:
+    #gets frequency of terms
+    #takes as parameter "reducedComments" which is a list
     localTFVector = []
     globalTFDict = {}
     for comment in reducedComments:
@@ -178,7 +202,9 @@ def getTermFrequencyVectors(reducedComments:list)->list:
     return localTFVector,globalTFDict
 
 def tagPythonPos(annotatedComments:list):
-    pythonTypes = ['NoneType','int','long','float','double','complex','bool','str','string','unicode','array','ndarray','list','dataframe','tuple','set','map','dict','arr','shape','type']
+    #creates a list of python tagged words
+    #takes "annotatedComments" as a parameter which is a list
+    pythonTypes = ['NoneType','int','long','float','double','complex','bool','str','string','unicode','array','ndarray','list','dataframe','tuple','set','map','dict','arr','type']
     pythonKeywords = keyword.kwlist
     pythonRegexList = [r'.*(A|a)rray.*',r'.*(N|n)one.*',r'.*(E|e)rror.*',r'(I|i)nteger']
     for comment in annotatedComments:
