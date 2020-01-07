@@ -4,7 +4,7 @@ Created on Wed Dec  4 14:23:42 2019
 
 @author: Omar Al Jaroudi
 """
-
+#libararies
 import pandas as pd
 import re 
 import pickle
@@ -24,25 +24,28 @@ commentBlocks = pickle.load(file)
 file = open(PATH+"_fsl.pkl",'rb')
 ftSignatures = pickle.load(file)
 
+
 def cleanUp(comments):
+    #uses regex as well as custom defined stop words to remove unwanted words
+    #takes as parameters "comments" which is a string
+    #returns a list of words
     uselessRegex = r'[^\w]+'
     c = re.sub(uselessRegex,' ',comments)
-    stop_words = ['the','is','are','am','was','there','at','on','where','was','how','which','be','can','for','an','in','of','off','The','and','but','or','their','they','can','that','they']
+    stop_words = ['the','is','are','am','was','there','at','on','where','was','how','which','be','can','for','an','in','of','off','The','but','or','their','they','can','that','they']
     words = nltk.word_tokenize(c) 
     filtered_sentence = [w for w in words if (not w in stop_words and not w.isdigit())] 
     return filtered_sentence
 
-def cleanUp2(words):
-    stop_words = ['the','is','are','am','was','there','at','on','where','was','how','which','be','can','for','an','in','of','off','The','and','but','or','their','they','can','that','they']
-    filtered_sentence = [w for w in words if (not w in stop_words and not w.isdigit())] 
-    return filtered_sentence
  
 def NormalPOSTag(tokenizedComment):
+    #creates taggedComment which is a list of POS tags corresponding to words in "tokenizedComment" which is a list of words
     taggedComment = nltk.pos_tag(tokenizedComment)
     return taggedComment
 
 def PythonPOSTag(tokenizedComment):
-    
+    #similar behavior to NormalPOSTag but uses PythonPOS instead of normal POS
+    #takes as parameter "tokenizedComment" which is a list
+    #returns tupleList which is a python tag list
     tupleList = []
     PythonTypes = ['NoneType','int','long','float','double','complex','bool','str','string','unicode','array','ndarray','list','dataframe','tuple','set','map','dict','arr','shape','type']
     PythonKeywords = keyword.kwlist
@@ -60,6 +63,9 @@ def PythonPOSTag(tokenizedComment):
 
 
 def LexiconTag(tokenizedComment):
+    #Creates a list containing either "special" or "lexicon" indicating if the word is out of lexicon or not
+    #takes as parameter "tokenizedComment" which is a list of words (strings)
+    #returns "tupleSet" which is a list of lexicon tags corresponding to the words in "tokenizedComment"
     spell = SpellChecker()
     specialWord = spell.unknown(tokenizedComment)
     for w in tokenizedComment:
@@ -74,62 +80,9 @@ def LexiconTag(tokenizedComment):
     return tupleSet
 
 
-def SurroundedByKeyword(codeBlocks):
-    for block in codeBlocks:
-        for i,c in enumerate(block):
-            if i>=2 and i<len(block)-2:
-                for j in range(-2,3):
-                    if block[i+j][3]=='PythonPos':
-                        if len(block[i])==5:
-                            block[i].append("Surrounded")
-                        elif len(block[i])==6:
-                            block[i][5] = "Surrounded"
-                    else:
-                        if len(block[i])==5:
-                            block[i].append("NotSurrounded")
-            elif i==0:
-                for j in range(0,3):
-                    if block[i+j][3]=='PythonPos':
-                        if len(block[i])==5:
-                            block[i].append("Surrounded")
-                        elif len(block[i])==6:
-                            block[i][5] = "Surrounded"
-                    else:
-                        if len(block[i])==5:
-                            block[i].append("NotSurrounded")
-            elif i==1:
-                for j in range(-1,3):
-                    if block[i+j][3]=='PythonPos':
-                        if len(block[i])==5:
-                            block[i].append("Surrounded")
-                        elif len(block[i])==6:
-                            block[i][5] = "Surrounded"
-                    else:
-                        if len(block[i])==5:
-                            block[i].append("NotSurrounded")
-            elif i==len(block)-2:
-                for j in range(-2,2):
-                    if block[i+j][3]=='PythonPos':
-                        if len(block[i])==5:
-                            block[i].append("Surrounded")
-                        elif len(block[i])==6:
-                            block[i][5] = "Surrounded"
-                    else:
-                        if len(block[i])==5:
-                            block[i].append("NotSurrounded")
-            elif i==len(block)-1:
-                for j in range(-2,0):
-                    if block[i+j][3]=='PythonPos':
-                        if len(block[i])==5:
-                            block[i].append("Surrounded")
-                        elif len(block[i])==6:
-                            block[i][5] = "Surrounded"
-                    else:
-                        if len(block[i])==5:
-                            block[i].append("NotSurrounded")
-    return codeBlocks
-
 def TFScore(word,doc):
+    #Calculates the term frequency score of a "word" which is a paramater string and "doc" which is a list of words and a parameter itself(doc is usually the comment block)
+    #returns a number which is the TF score
     num = 0
     for w in doc:
         if word==w[0]:
@@ -137,6 +90,8 @@ def TFScore(word,doc):
     return (math.log10(1+num))
 
 def IDFScore(word,docs):
+    #Calculates the inverse document frequency score where "word" and "doc" are parameters used similarly as in TFScore
+    #returns a number which is the IDF score
     i=0
     for d in docs:
         for vec in d:
@@ -146,53 +101,6 @@ def IDFScore(word,docs):
     return (math.log10(len(docs)/i))
 
 
-file = open("commentDataSet.pkl","rb")
-commentSet = pickle.load(file)
-file.close()
-
-sklearnList = []
-for i,comment in enumerate(commentBlocks):
-    firstList = []
-    comment = cleanUp(comment[0])
-    n = NormalPOSTag(comment)
-    lex = LexiconTag(comment)
-    k = PythonPOSTag(comment)
-    param = []
-    for j,word in enumerate(comment):
-        if word in ftSignatures[i][1]:
-            param.append((word,"P"))
-        else:
-            param.append((word,"W"))
-    
-        firstList.append([word,n[j][1],param[j][1],k[j][1],lex[j][1]])
-
-    sklearnList.append(firstList)
-
-sklearnList = SurroundedByKeyword(sklearnList)
-
-for c in sklearnList:
-    commentSet.append(c)
-
-AllWords = []
-for c in commentSet:
-    for word in c:
-        AllWords.append(word[0])
-        
-AllWords = list(set(AllWords))
-IDFScoreVector = {}
-for w in AllWords:
-    idf = IDFScore(w,commentSet)
-    IDFScoreVector[w] = idf
-
-for c in commentSet:
-    for word in c:
-        tf = TFScore(word[0],c)
-        idf = IDFScoreVector[word[0]]
-        total = tf*idf
-        if len(word)==7:
-            word[6] = total
-        elif len(word)==6:
-            word.append(total)
 
 
 
